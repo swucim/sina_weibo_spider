@@ -3,7 +3,7 @@ from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 import time, datetime
 import MySQLdb
-import random
+import  random
 import logging
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, UnexpectedAlertPresentException
 
@@ -102,57 +102,45 @@ def search_weibo_ping(driver):
     con = MySQLdb.connect('localhost', 'root', 'admin', 'weibo');
     with con:
         cur = con.cursor()
-        cur.execute("select DISTINCT weibo_ping_url,weibo_ping weibo_ping from weibo where weibo_ping <> 0 order by CONVERT(weibo_ping, SIGNED) DESC")
+        cur.execute("select DISTINCT weibo_ping_url,weibo_ping weibo_ping from weibo where weibo_ping <> 0 order by CONVERT(weibo_ping, SIGNED) ASC")
         rows = cur.fetchall()
         total_num = len(rows)
         cur_num = 1
         for row in rows:
-            # print row[0]
-            # print row[1]
             try:
                 driver.get(row[0])
                 time.sleep(random.randint(3,4))
-                # if element_exist(driver,'//div[@id="pagelist"]') == 1:
-                # row[1] here could be updated according to latest comments amount
                 if int(row[1]) > 10:
                     if wait_element(driver, '//div[contains(@class,"c") and contains(@id, "C_")]') == 1:
                         page_num_temp = driver.find_element_by_xpath('//div[@id="pagelist"]').text.strip()
                         page_num = int(filter(lambda x:x.isdigit(),page_num_temp).strip()[1:])
-                        num = 2
-                        while num <= page_num:
-                            try:
-                                if element_exist(driver,'//div[@id="pagelist"]') == 1:
-                                    pinglun_ren = driver.find_elements_by_xpath('//div[contains(@class,"c") and contains(@id, "C_")]/a[1]')
-                                    pinglun =driver.find_elements_by_xpath('//div[contains(@class,"c") and contains(@id, "C_")]/span[@class="ctt"]')
-                                    for p in range(len(pinglun)):
-                                        weibo_ping_name = pinglun_ren[p].text.strip().replace(chr(39),chr(32)).encode('gbk','ignore').decode('gbk','ignore')
-                                        weibo_ping = pinglun[p].text.strip().replace(chr(39),chr(32)).encode('gbk','ignore').decode('gbk','ignore')
-                                        sql = "insert into ping(weibo_ping_name,weibo_ping_content,weibo_ping_url) values('%s','%s','%s');" %\
-                                              (weibo_ping_name, weibo_ping,row[0])
-                                        sql_query(sql)
-                                    driver.find_element_by_xpath('//div[@class="pa"]/form/div/input[@name="page"]').clear()
-                                    driver.find_element_by_xpath('//div[@class="pa"]/form/div/input[@name="page"]').send_keys(num)
-                                    driver.find_element_by_xpath('//div[@class="pa"]/form/div/input[@type="submit"]').click()
-                                    # num+=1
-                                else:
-                                    driver.back()
-                                    time.sleep(1)
-                            except NoSuchElementException, e:
+                        for num in range(2, page_num+1):
+                            if element_exist(driver,'//div[@id="pagelist"]') == 1:
+                                pinglun_ren = driver.find_elements_by_xpath('//div[contains(@class,"c") and contains(@id, "C_")]/a[1]')
+                                pinglun =driver.find_elements_by_xpath('//div[contains(@class,"c") and contains(@id, "C_")]/span[@class="ctt"]')
+                                for p in range(len(pinglun)):
+                                    weibo_ping_name = pinglun_ren[p].text.strip().replace(chr(39),chr(32)).encode('gbk','ignore').decode('gbk','ignore')
+                                    weibo_ping = pinglun[p].text.strip().replace(chr(39),chr(32)).encode('gbk','ignore').decode('gbk','ignore')
+                                    sql = "insert into ping(weibo_ping_name,weibo_ping_content,weibo_ping_url) values('%s','%s','%s');" %\
+                                          (weibo_ping_name, weibo_ping,row[0])
+                                    sql_query(sql)
+                                driver.find_element_by_xpath('//div[@class="pa"]/form/div/input[@name="page"]').clear()
+                                driver.find_element_by_xpath('//div[@class="pa"]/form/div/input[@name="page"]').send_keys(num)
+                                driver.find_element_by_xpath('//div[@class="pa"]/form/div/input[@type="submit"]').click()
+                                # logging.info('num plus')
+                                if num > page_num:
+                                    break
+                                    print 'out'
+                            else:
                                 driver.back()
                                 time.sleep(1)
-                            except StaleElementReferenceException,e:
-                                driver.back()
-                                time.sleep(1)
-                            except UnexpectedAlertPresentException, e:
-                                driver.back()
-                                time.sleep(1)
-                            finally:
-                                num += 1
+                        print str(num) +' '+ str(page_num) + '!!!'
+                        logging.info('update weibo ping success! '+str(cur_num)+'/'+str(total_num)+' '+row[0])
+                        continue
                     else:
                         driver.back()
                         continue
                 else:
-                    # if wait_element(driver,  '//div[contains(@class,"c") and contains(@id, "C_")]') == 1:
                     if element_exist(driver,  '//div[contains(@class,"c") and contains(@id, "C_")]') == 1:
                         pinglun_ren = driver.find_elements_by_xpath('//div[contains(@class,"c") and contains(@id, "C_")]/a[1]')
                         pinglun =driver.find_elements_by_xpath('//div[contains(@class,"c") and contains(@id, "C_")]/span[@class="ctt"]')
@@ -162,6 +150,7 @@ def search_weibo_ping(driver):
                             sql = "insert into ping(weibo_ping_name,weibo_ping_content,weibo_ping_url) values('%s','%s','%s');" %\
                                   (weibo_ping_name, weibo_ping,row[0])
                             sql_query(sql)
+                        logging.info('update weibo ping success! '+str(cur_num)+'/'+str(total_num)+' '+row[0])
                     else:
                         driver.refresh()
                         logging.error('not found comments! '+str(cur_num)+'/'+str(total_num)+' '+row[0])
@@ -178,8 +167,6 @@ def search_weibo_ping(driver):
             except UnexpectedAlertPresentException, e:
                 driver.back()
                 continue
-            else:
-                logging.info('update weibo ping success! '+str(cur_num)+'/'+str(total_num)+' '+row[0])
             finally:
                 cur_num += 1
 
